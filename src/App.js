@@ -5,17 +5,89 @@ function App() {
     to: "",
     subject: "",
     body: "",
-    fileName: ""
+    fileName: "",
+    latitude: "",
+    longitude: "",
+    locationName: ""
   });
 
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
+  // Handle input change
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Reverse geocoding (fast, async)
+  const fetchLocationDetails = async (lat, lon) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`
+      );
+      const data = await res.json();
+
+      const address = data.address || {};
+      const area =
+        address.suburb ||
+        address.neighbourhood ||
+        address.village ||
+        "";
+      const city = address.city || address.town || "";
+      const pincode = address.postcode || "";
+
+      setFormData((prev) => ({
+        ...prev,
+        locationName: `${area}, ${city} - ${pincode}`
+      }));
+    } catch {
+      setFormData((prev) => ({
+        ...prev,
+        locationName: "Location unavailable"
+      }));
+    }
+  };
+
+  // Fast current location
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation not supported");
+      return;
+    }
+
+    setLoadingLocation(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+
+        // instant UI update
+        setFormData((prev) => ({
+          ...prev,
+          latitude: lat,
+          longitude: lon,
+          locationName: "Detecting area..."
+        }));
+
+        // non-blocking reverse lookup
+        setTimeout(() => fetchLocationDetails(lat, lon), 0);
+
+        setLoadingLocation(false);
+      },
+      (error) => {
+        setLoadingLocation(false);
+        alert("Location error: " + error.message);
+      },
+      {
+        enableHighAccuracy: false, // faster
+        timeout: 3000,
+        maximumAge: 300000 // cached location (5 mins)
+      }
+    );
+  };
+
+  // Send email
   const sendEmail = async () => {
     if (!formData.to || !formData.subject) {
       alert("Recipient email and subject are required");
@@ -25,23 +97,25 @@ function App() {
     try {
       const response = await fetch("http://localhost:8080/email/send", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `HTTP error ${response.status}`);
-      }
-
-      const result = await response.text();
-      alert("SUCCESS: " + result);
+      if (!response.ok) throw new Error(await response.text());
+      alert("Email sent successfully");
     } catch (error) {
-      console.error("FULL ERROR:", error);
-      alert("Error sending email:\n" + error.message);
+      alert("Error sending email: " + error.message);
     }
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "12px",
+    marginBottom: "12px",
+    borderRadius: "8px",
+    border: "1px solid #ddd",
+    fontSize: "14px",
+    outline: "none"
   };
 
   return (
@@ -51,22 +125,24 @@ function App() {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-        background: "linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)"
+        background: "linear-gradient(135deg, #e3f2fd, #ede7f6)"
       }}
     >
       <div
         style={{
-          width: "400px",
-          padding: "30px",
-          borderRadius: "12px",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-          background: "rgba(255, 255, 255, 0.95)"
+          width: "420px",
+          padding: "32px",
+          borderRadius: "16px",
+          background: "#fff",
+          boxShadow: "0 20px 40px rgba(0,0,0,0.15)"
         }}
       >
-        <h2 style={{ textAlign: "center", color: "#1976d2", marginBottom: "25px" }}>
-          Send Email with PDF
+        <h2 style={{ textAlign: "center", marginBottom: "6px" }}>
+          📧 Send Email
         </h2>
+        <p style={{ textAlign: "center", fontSize: "13px", color: "#666" }}>
+          Email with auto-detected location
+        </p>
 
         <input
           type="email"
@@ -74,15 +150,7 @@ function App() {
           placeholder="Recipient Email"
           value={formData.to}
           onChange={handleChange}
-          style={{
-            width: "100%",
-            marginBottom: "15px",
-            padding: "12px",
-            borderRadius: "8px",
-            border: "1px solid #ccc",
-            boxShadow: "inset 0 2px 4px rgba(0,0,0,0.05)",
-            fontSize: "15px"
-          }}
+          style={inputStyle}
         />
 
         <input
@@ -91,70 +159,74 @@ function App() {
           placeholder="Subject"
           value={formData.subject}
           onChange={handleChange}
-          style={{
-            width: "100%",
-            marginBottom: "15px",
-            padding: "12px",
-            borderRadius: "8px",
-            border: "1px solid #ccc",
-            boxShadow: "inset 0 2px 4px rgba(0,0,0,0.05)",
-            fontSize: "15px"
-          }}
+          style={inputStyle}
         />
 
         <textarea
           name="body"
           placeholder="Email Body"
+          rows={4}
           value={formData.body}
           onChange={handleChange}
-          rows={5}
-          style={{
-            width: "100%",
-            marginBottom: "15px",
-            padding: "12px",
-            borderRadius: "8px",
-            border: "1px solid #ccc",
-            boxShadow: "inset 0 2px 4px rgba(0,0,0,0.05)",
-            fontSize: "15px",
-            resize: "vertical"
-          }}
+          style={{ ...inputStyle, resize: "none" }}
         />
 
         <input
           type="text"
           name="fileName"
-          placeholder="PDF File Name (example.pdf)"
+          placeholder="PDF File Name"
           value={formData.fileName}
           onChange={handleChange}
+          style={inputStyle}
+        />
+
+        <button
+          onClick={getCurrentLocation}
+          disabled={loadingLocation}
           style={{
             width: "100%",
-            marginBottom: "20px",
             padding: "12px",
+            marginBottom: "12px",
+            background: loadingLocation ? "#bdbdbd" : "#4caf50",
+            color: "#fff",
+            border: "none",
             borderRadius: "8px",
-            border: "1px solid #ccc",
-            boxShadow: "inset 0 2px 4px rgba(0,0,0,0.05)",
-            fontSize: "15px"
+            fontWeight: "600",
+            cursor: loadingLocation ? "not-allowed" : "pointer"
           }}
-        />
+        >
+          {loadingLocation ? "Fetching Location..." : "📍 Fetch Current Location"}
+        </button>
+
+        {formData.locationName && (
+          <div
+            style={{
+              background: "#f5f7ff",
+              padding: "10px",
+              borderRadius: "8px",
+              fontSize: "13px",
+              marginBottom: "16px"
+            }}
+          >
+            📍 {formData.locationName}
+          </div>
+        )}
 
         <button
           onClick={sendEmail}
           style={{
             width: "100%",
             padding: "14px",
-            backgroundColor: "#1976d2",
+            background: "#1976d2",
             color: "#fff",
             border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontSize: "16px",
-            fontWeight: "bold",
-            transition: "all 0.3s ease"
+            borderRadius: "10px",
+            fontWeight: "700",
+            fontSize: "15px",
+            cursor: "pointer"
           }}
-          onMouseEnter={(e) => (e.target.style.backgroundColor = "#155a9c")}
-          onMouseLeave={(e) => (e.target.style.backgroundColor = "#1976d2")}
         >
-          Send Email
+          🚀 Send Email
         </button>
       </div>
     </div>
