@@ -1,14 +1,23 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # Getting Started with Create React App
+=======
+# React Email Sender with PDF
+>>>>>>> cbca80fabb413548168f62b54c496d6e40af25b7
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A simple React application that allows you to send emails with an optional PDF attachment using a backend API.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## Features
 
-### `npm start`
+- Send emails to any recipient.
+- Include email subject and body.
+- Specify PDF file name for attachment.
+- Modern and responsive UI with gradient background.
+- Simple client-side validation for required fields.
 
+<<<<<<< HEAD
 Runs the app in the development mode.\
 Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
@@ -72,3 +81,6 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/t
 =======
 # email-frontend
 >>>>>>> 8235521af1ec2ae14929c5169c60db22ef2b3077
+=======
+---
+>>>>>>> cbca80fabb413548168f62b54c496d6e40af25b7
